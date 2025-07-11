@@ -1,72 +1,75 @@
-import { put } from '@vercel/blob';
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
+import { put } from "@vercel/blob";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
-import { auth } from '@/lib/auth';
+// Optional: import your auth handler if needed
+import { auth } from "@/lib/auth";
 
-// File validation schema
+// ✅ File validation schema
 const FileSchema = z.object({
-    file: z
-        .instanceof(Blob)
-        .refine((file) => file.size <= 5 * 1024 * 1024, {
-            message: 'File size should be less than 5MB',
-        })
-        .refine((file) => {
-            const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
-            return validTypes.includes(file.type);
-        }, {
-            message: 'File type should be JPEG, PNG, GIF or PDF',
-        }),
+  file: z
+    .instanceof(File)
+    .refine((file) => file.size <= 5 * 1024 * 1024, {
+      message: "File size should be less than 5MB",
+    })
+    .refine((file) => {
+      const validTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "application/pdf",
+      ];
+      return validTypes.includes(file.type);
+    }, {
+      message: "File type should be JPEG, PNG, GIF or PDF",
+    }),
 });
 
+// ✅ Upload handler
 export async function POST(request: NextRequest) {
-    // Check for authentication but don't require it
-    let isAuthenticated = false;
-    try {
-        const session = await auth.api.getSession({
-            headers: request.headers,
-        });
-        isAuthenticated = !!session;
-    } catch (error) {
-        console.warn('Error checking authentication:', error);
-        // Continue as unauthenticated
-    }
+  // 🔐 Check for authentication (optional)
+  let isAuthenticated = false;
+  try {
+    const sessionResponse = await auth(request);
+    isAuthenticated = !!sessionResponse;
+  } catch (error) {
+    console.warn("Auth error, continuing unauthenticated:", error);
+  }
 
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
+  const formData = await request.formData();
+  const file = formData.get("file");
 
-    if (!file) {
-        return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
-    }
+  // ✅ Validate file type
+  if (!(file instanceof File)) {
+    return NextResponse.json({ error: "Invalid file upload" }, { status: 400 });
+  }
 
-    // Validate file
-    const validatedFile = FileSchema.safeParse({ file });
-    if (!validatedFile.success) {
-        const errorMessage = validatedFile.error.errors
-            .map((error) => error.message)
-            .join(', ');
+  const result = FileSchema.safeParse({ file });
+  if (!result.success) {
+    return NextResponse.json(
+      { error: result.error.errors[0].message },
+      { status: 400 }
+    );
+  }
 
-        return NextResponse.json({ error: errorMessage }, { status: 400 });
-    }
+  const validatedFile = result.data.file;
 
-    try {
-        // Use a different prefix for authenticated vs unauthenticated uploads
-        const prefix = isAuthenticated ? 'auth' : 'public';
+  // ✅ Upload to Vercel Blob
+  try {
+    const blob = await put(validatedFile.name, validatedFile, {
+      access: "public",
+    });
 
-        const blob = await put(`mplx/${prefix}.${file.name.split('.').pop()}`, file, {
-            access: 'public',
-            addRandomSuffix: true,
-        });
-
-        return NextResponse.json({
-            name: file.name,
-            contentType: file.type,
-            url: blob.url,
-            size: file.size,
-            authenticated: isAuthenticated,
-        });
-    } catch (error) {
-        console.error('Error uploading file:', error);
-        return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 });
-    }
+    return NextResponse.json({
+      url: blob.url,
+      authenticated: isAuthenticated,
+    });
+  } catch (err) {
+    console.error("Upload failed:", err);
+    return NextResponse.json(
+      { error: "Upload failed. Please try again." },
+      { status: 500 }
+    );
+  }
 }
+

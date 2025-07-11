@@ -1,8 +1,9 @@
+// lib/subscription.ts
 import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
 import { db } from '@/lib/db';
 import { subscription } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { headers } from 'next/headers';
 
 export type SubscriptionDetails = {
   id: string;
@@ -29,81 +30,70 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetailsResul
   'use server';
 
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    /* 1️⃣  Build plain HeadersInit and call BetterAuth */
+    const hdr = Object.fromEntries(await headers()) as HeadersInit;
+    const req = new Request('http://localhost/api/auth/session', { headers: hdr });
+    const res = await auth(req);
 
-    if (!session?.user?.id) {
-      return { hasSubscription: false };
+
+    
+    if (!res.ok) return { hasSubscription: false };
+
+    const sess = (await res.json()) as { user?: { id: string } } | null;
+    if (!sess?.user?.id) return { hasSubscription: false };
+
+    /* 2️⃣  Look up user subscriptions */
+    const userSubs = await db
+      .select()
+      .from(subscription)
+      .where(eq(subscription.userId, sess.user.id));
+
+    if (!userSubs.length) return { hasSubscription: false };
+
+    /* 3️⃣  Find active (or latest) subscription */
+    const active = userSubs
+      .filter((s) => s.status === 'active')
+      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))[0];
+
+    const subRow = active ?? userSubs.sort(
+      (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
+    )[0];
+
+    const sub: SubscriptionDetails = {
+      id: subRow.id,
+      productId: subRow.productId,
+      status: subRow.status,
+      amount: subRow.amount,
+      currency: subRow.currency,
+      recurringInterval: subRow.recurringInterval,
+      currentPeriodStart: subRow.currentPeriodStart,
+      currentPeriodEnd: subRow.currentPeriodEnd,
+      cancelAtPeriodEnd: subRow.cancelAtPeriodEnd,
+      canceledAt: subRow.canceledAt,
+      organizationId: null,
+    };
+
+    if (active) {
+      return { hasSubscription: true, subscription: sub };
     }
 
-    const userSubscriptions = await db.select().from(subscription).where(eq(subscription.userId, session.user.id));
-
-    if (!userSubscriptions.length) {
-      return { hasSubscription: false };
-    }
-
-    // Get the most recent active subscription
-    const activeSubscription = userSubscriptions
-      .filter((sub) => sub.status === 'active')
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-
-    if (!activeSubscription) {
-      // Check for canceled or expired subscriptions
-      const latestSubscription = userSubscriptions.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )[0];
-
-      if (latestSubscription) {
-        const now = new Date();
-        const isExpired = new Date(latestSubscription.currentPeriodEnd) < now;
-        const isCanceled = latestSubscription.status === 'canceled';
-
-        return {
-          hasSubscription: true,
-          subscription: {
-            id: latestSubscription.id,
-            productId: latestSubscription.productId,
-            status: latestSubscription.status,
-            amount: latestSubscription.amount,
-            currency: latestSubscription.currency,
-            recurringInterval: latestSubscription.recurringInterval,
-            currentPeriodStart: latestSubscription.currentPeriodStart,
-            currentPeriodEnd: latestSubscription.currentPeriodEnd,
-            cancelAtPeriodEnd: latestSubscription.cancelAtPeriodEnd,
-            canceledAt: latestSubscription.canceledAt,
-            organizationId: null,
-          },
-          error: isCanceled
-            ? 'Subscription has been canceled'
-            : isExpired
-              ? 'Subscription has expired'
-              : 'Subscription is not active',
-          errorType: isCanceled ? 'CANCELED' : isExpired ? 'EXPIRED' : 'GENERAL',
-        };
-      }
-
-      return { hasSubscription: false };
-    }
+    /* 4️⃣  Handle canceled / expired */
+    const now = Date.now();
+    const expired = +new Date(sub.currentPeriodEnd) < now;
+    const canceled = sub.status === 'canceled';
 
     return {
       hasSubscription: true,
-      subscription: {
-        id: activeSubscription.id,
-        productId: activeSubscription.productId,
-        status: activeSubscription.status,
-        amount: activeSubscription.amount,
-        currency: activeSubscription.currency,
-        recurringInterval: activeSubscription.recurringInterval,
-        currentPeriodStart: activeSubscription.currentPeriodStart,
-        currentPeriodEnd: activeSubscription.currentPeriodEnd,
-        cancelAtPeriodEnd: activeSubscription.cancelAtPeriodEnd,
-        canceledAt: activeSubscription.canceledAt,
-        organizationId: null,
-      },
+      subscription: sub,
+      error: canceled
+        ? 'Subscription has been canceled'
+        : expired
+          ? 'Subscription has expired'
+          : 'Subscription is not active',
+      errorType: canceled ? 'CANCELED' : expired ? 'EXPIRED' : 'GENERAL',
     };
-  } catch (error) {
-    console.error('Error fetching subscription details:', error);
+  } catch (err) {
+    console.error('Error fetching subscription details:', err);
     return {
       hasSubscription: false,
       error: 'Failed to load subscription details',
@@ -112,39 +102,27 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetailsResul
   }
 }
 
-// Simple helper to check if user has an active subscription
-export async function isUserSubscribed(): Promise<boolean> {
-  const result = await getSubscriptionDetails();
-  return result.hasSubscription && result.subscription?.status === 'active';
+/* ─────── Convenience wrappers (unchanged) ─────── */
+export async function isUserSubscribed() {
+  const r = await getSubscriptionDetails();
+  return r.hasSubscription && r.subscription?.status === 'active';
 }
 
-// Helper to check if user has access to a specific product/tier
-export async function hasAccessToProduct(productId: string): Promise<boolean> {
-  const result = await getSubscriptionDetails();
+export async function hasAccessToProduct(productId: string) {
+  const r = await getSubscriptionDetails();
   return (
-    result.hasSubscription && result.subscription?.status === 'active' && result.subscription?.productId === productId
+    r.hasSubscription &&
+    r.subscription?.status === 'active' &&
+    r.subscription.productId === productId
   );
 }
 
-// Helper to get user's current subscription status
-export async function getUserSubscriptionStatus(): Promise<'active' | 'canceled' | 'expired' | 'none'> {
-  const result = await getSubscriptionDetails();
-
-  if (!result.hasSubscription) {
-    return 'none';
-  }
-
-  if (result.subscription?.status === 'active') {
-    return 'active';
-  }
-
-  if (result.errorType === 'CANCELED') {
-    return 'canceled';
-  }
-
-  if (result.errorType === 'EXPIRED') {
-    return 'expired';
-  }
-
+export async function getUserSubscriptionStatus():
+  Promise<'active' | 'canceled' | 'expired' | 'none'> {
+  const r = await getSubscriptionDetails();
+  if (!r.hasSubscription) return 'none';
+  if (r.subscription?.status === 'active') return 'active';
+  if (r.errorType === 'CANCELED') return 'canceled';
+  if (r.errorType === 'EXPIRED') return 'expired';
   return 'none';
 }

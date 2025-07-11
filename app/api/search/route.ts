@@ -6,6 +6,7 @@ import {
   getSubDetails,
   getExtremeSearchUsageCount,
 } from '@/app/actions';
+import { getSession } from '@/lib/auth-utils';
 import { serverEnv } from '@/env/server';
 import { OpenAIResponsesProviderOptions } from '@ai-sdk/openai';
 import { Daytona } from '@daytonaio/sdk';
@@ -319,7 +320,7 @@ export async function POST(req: Request) {
   console.log('Messages: ', messages);
   console.log('--------------------------------');
 
-  const user = await getUser();
+  const user = await getUser(req);
   const streamId = 'stream-' + uuidv4();
 
   if (!user) {
@@ -2543,7 +2544,7 @@ print(f"Converted amount: {converted_amount}")
           reddit_search: tool({
             description: 'Search Reddit content using Tavily API.',
             parameters: z.object({
-              query: z.string().describe('The exact search query from the user.'),
+              query: z.string().describe('The exact search query from the user.').max(200),
               maxResults: z.number().describe('Maximum number of results to return. Default is 20.'),
               timeRange: z.enum(['day', 'week', 'month', 'year']).describe('Time range for Reddit search.'),
             }),
@@ -2863,7 +2864,7 @@ export async function GET(request: Request) {
     return new ChatSDKError('bad_request:api', 'Chat ID is required').toResponse();
   }
 
-  const session = await auth.api.getSession(request);
+  const session = await getSession(request);
 
   if (!session?.user) {
     return new ChatSDKError('unauthorized:auth', 'Authentication required to resume chat stream').toResponse();

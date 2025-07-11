@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { signIn } from '@/lib/auth-client';
-import { Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { signIn } from '@/lib/auth-client';
+import { cn } from '@/lib/utils';
 
 interface SignInPromptDialogProps {
   open: boolean;
@@ -104,20 +105,20 @@ export function SignInPromptDialog({ open, onOpenChange }: SignInPromptDialogPro
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[360px] p-6 gap-0 border border-neutral-200 dark:border-neutral-800 rounded-lg">
-        {/* Compact Header */}
-        <div className="mb-6">
-          <h2 className="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-1">Sign in to continue</h2>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">Save conversations and sync across devices</p>
-        </div>
+        {/* ✅ Accessibility Title & Description */}
+        <DialogTitle className="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-1">
+          Sign in to continue
+        </DialogTitle>
+        <DialogDescription className="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
+          Save conversations and sync across devices
+        </DialogDescription>
 
-        {/* Auth Options */}
         <div className="space-y-2 mb-4">
           <SignInButton provider="github" loading={githubLoading} setLoading={setGithubLoading} />
           <SignInButton provider="google" loading={googleLoading} setLoading={setGoogleLoading} />
           <SignInButton provider="twitter" loading={twitterLoading} setLoading={setTwitterLoading} />
         </div>
 
-        {/* Divider */}
         <div className="relative my-4">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-neutral-200 dark:border-neutral-800"></div>
@@ -127,7 +128,6 @@ export function SignInPromptDialog({ open, onOpenChange }: SignInPromptDialogPro
           </div>
         </div>
 
-        {/* Guest Option */}
         <Button
           variant="ghost"
           onClick={() => onOpenChange(false)}
@@ -136,16 +136,12 @@ export function SignInPromptDialog({ open, onOpenChange }: SignInPromptDialogPro
           Continue without account
         </Button>
 
-        {/* Legal */}
         <p className="text-xs text-neutral-400 dark:text-neutral-500 text-center mt-4">
           By continuing, you accept our{' '}
-          <Link
-            href="/terms"
-            className="underline underline-offset-2 hover:text-neutral-600 dark:hover:text-neutral-300"
-          >
+          <Link href="/terms" className="underline underline-offset-2 hover:text-neutral-600 dark:hover:text-neutral-300">
             Terms
-          </Link>
-          {' & '}
+          </Link>{' '}
+          &{' '}
           <Link
             href="/privacy-policy"
             className="underline underline-offset-2 hover:text-neutral-600 dark:hover:text-neutral-300"

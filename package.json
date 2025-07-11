@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "next build --turbopack",
     "start": "next start",
     "lint": "next lint",
     "knip": "knip"
@@ -20,6 +20,7 @@
     "@ai-sdk/ui-utils": "^1.2.11",
     "@ai-sdk/xai": "^1.2.16",
     "@aws-sdk/client-s3": "^3.835.0",
+    "@aws-sdk/lib-storage": "^3.842.0",
     "@babel/runtime": ">=7.27.0",
     "@daytonaio/sdk": "^0.21.4",
     "@foobar404/wave": "^2.0.5",
@@ -50,7 +51,7 @@
     "@react-spring/web": "^10.0.1",
     "@t3-oss/env-nextjs": "^0.13.8",
     "@tailwindcss/typography": "^0.5.16",
-    "@tanstack/react-query": "^5.81.4",
+    "@tanstack/react-query": "^5.81.5",
     "@tavily/core": "^0.5.8",
     "@vercel/analytics": "^1.5.0",
     "@vercel/blob": "^1.1.1",
@@ -83,9 +84,9 @@
     "luxon": "^3.6.1",
     "mapbox-gl": "^3.12.0",
     "marked-react": "^3.0.0",
-    "mem0ai": "^2.1.33",
+    "mem0ai": "^1.0.39",
     "motion": "^12.18.1",
-    "next": "15.4.0-canary.103",
+    "next": "15.4.0-canary.108",
     "next-themes": "0.4.6",
     "nuqs": "^2.4.3",
     "postgres": "^3.4.7",
@@ -100,6 +101,7 @@
     "react-tweet": "^3.2.2",
     "react-use-measure": "^2.1.7",
     "recharts": "^2.15.3",
+    "redis": "^5.5.6",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
@@ -129,9 +131,9 @@
     "@types/react-katex": "^3.0.4",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/unist": "^3.0.3",
-    "drizzle-kit": "^0.31.1",
+    "drizzle-kit": "^0.31.4",
     "eslint": "^9.28.0",
-    "eslint-config-next": "15.4.0-canary.103",
+    "eslint-config-next": "15.4.0-canary.108",
     "knip": "^5.41.1",
     "micromatch": "^4.0.8",
     "postcss": ">=8.5.5",
@@ -152,5 +154,5 @@
   "overrides": {
     "react-is": "^19.0.0-rc-69d4b800-20241021"
   },
-  "packageManager": "pnpm@9.15.9+sha512.68046141893c66fad01c079231128e9afb89ef87e2691d69e4d40eee228988295fd4682181bae55b58418c3a253bde65a505ec7c5f9403ece5cc3cd37dcf2531"
+  "packageManager": "pnpm@10.12.4"
 }

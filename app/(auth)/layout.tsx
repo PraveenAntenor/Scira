@@ -9,10 +9,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           alt="Goku"
           width={1000}
           height={1000}
+          priority // ✅ Required for LCP images
           className="object-cover h-full w-full dark:grayscale"
         />
       </div>
-      <div className="w-full lg:w-1/2 h-full flex flex-col items-center justify-center px-2 md:px-0">{children}</div>
+      <div className="w-full lg:w-1/2 h-full flex flex-col items-center justify-center px-2 md:px-0">
+        {children}
+      </div>
     </div>
   );
 }

@@ -4,13 +4,15 @@ import { clientEnv } from '@/env/client';
 import { ThemeProvider } from 'next-themes';
 import posthog from 'posthog-js';
 import { PostHogProvider } from 'posthog-js/react';
-import { ReactNode } from 'react';
-import React from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
 
-if (typeof window !== 'undefined') {
-  posthog.init(clientEnv.NEXT_PUBLIC_POSTHOG_KEY!, {
+const isPosthogEnabled =
+  !!clientEnv.NEXT_PUBLIC_POSTHOG_KEY && !!clientEnv.NEXT_PUBLIC_POSTHOG_HOST;
+
+if (typeof window !== 'undefined' && clientEnv.NEXT_PUBLIC_POSTHOG_KEY && clientEnv.NEXT_PUBLIC_POSTHOG_HOST) {
+  posthog.init(clientEnv.NEXT_PUBLIC_POSTHOG_KEY, {
     api_host: clientEnv.NEXT_PUBLIC_POSTHOG_HOST,
     person_profiles: 'always',
   });
@@ -28,13 +30,25 @@ const queryClient = new QueryClient({
 });
 
 export function Providers({ children }: { children: ReactNode }) {
+  const [posthogLoaded, setPosthogLoaded] = useState(false);
+
+  useEffect(() => {
+    if (isPosthogEnabled) {
+      setPosthogLoaded(true);
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
-      <PostHogProvider client={posthog}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <TooltipProvider>{children}</TooltipProvider>
-        </ThemeProvider>
-      </PostHogProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <TooltipProvider>
+          {isPosthogEnabled && posthogLoaded ? (
+            <PostHogProvider client={posthog}>{children}</PostHogProvider>
+          ) : (
+            children
+          )}
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

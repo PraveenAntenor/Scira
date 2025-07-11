@@ -1,0 +1,3 @@
+GET http://localhost:3000/api/auth/get-session
+Cookie: your_cookie_name=your_cookie_value
+
